@@ -1,0 +1,10 @@
+github.com/Nik-U/pbc v0.0.0-20180606043936-12f3f0abc76d h1:zgYeTHRZR9ztoH4SvPuWaz12d4XtrGLsDMap8FOE/JM=
+github.com/Nik-U/pbc v0.0.0-20180606043936-12f3f0abc76d/go.mod h1:Zt2U1SemYWNGXqS1fDiZC7u74nsJTAnWK5WVgvI8OAs=
+github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3 h1:zN2lZNZRflqFyxVaTIU61KNKQ9C0055u9CAfpmqUvo4=
+github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3/go.mod h1:nPpo7qLxd6XL3hWJG/O60sR8ZKfMCiIoNap5GvD12KU=
+github.com/ncw/gmp v1.0.3 h1:RRbpng3WhDiI6H33t2JF3p+MDpwtK2aT/+eGWtqlGD0=
+github.com/ncw/gmp v1.0.3/go.mod h1:9KgVqQFm/0I9jDkwYqpVpvx0tpb2oTDDqZSKvcxEPmg=
+golang.org/x/exp v0.0.0-20180321215751-8460e604b9de/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
+golang.org/x/tools v0.0.0-20180525024113-a5b4c53f6e8b/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+gonum.org/v1/gonum v0.0.0-20181112092319-eb6a40d81aaf h1:K4WTYDNmuVbQMCze2I3keS8HzgSxSC23M64PCWN5hGc=
+gonum.org/v1/gonum v0.0.0-20181112092319-eb6a40d81aaf/go.mod h1:Y+Yx5eoAFn32cQvJDxZx5Dpnq+c3wtXuadVZAcxbbBo=
