@@ -17,6 +17,7 @@ type PK struct {
 	pairing *pbc.Pairing
 	g       []byte
 	pubKey  []byte
+	p       *big.Int
 }
 
 type SK struct {
@@ -28,6 +29,8 @@ type SK struct {
 type CT struct {
 	ciphertext *big.Int
 	signature  []byte
+	c1         *big.Int
+	c2         *big.Int
 }
 
 type DeSigCrypterKey struct {
@@ -37,8 +40,8 @@ type DeSigCrypterKey struct {
 
 func main() {
 	// TODO 給系統存取結構 待補...
-	sk := systemInit()
-	pk, ct := sk.encrypto("HelloLSSS")
+	sk, pk := systemInit()
+	ct := sk.encrypto(pk, "HelloLSSS")
 
 	//解切密者初始化
 	dsck := sk.deSingerInit()
@@ -47,7 +50,7 @@ func main() {
 	fmt.Println("message:", message)
 }
 
-func systemInit() (sk SK) {
+func systemInit() (sk SK, pk PK) {
 	// 限定八節點
 	// 簽密者初始化階段
 	prefix := lsss.InfixToPrefix("((A+B)*(C+D))*((E+F)*(G+H))")
@@ -88,11 +91,7 @@ func systemInit() (sk SK) {
 
 	sk = SK{attrField: jsonAttrField, secret: secrets[0], vectors: vectors}
 
-	return
-}
-
-func (sk SK) encrypto(message string) (pk PK, ct CT) {
-	prime, _ := rand.Prime(rand.Reader, 128)
+	prime, _ := rand.Prime(rand.Reader, 256)
 
 	params := pbc.GenerateA(10, 16)
 	pairing := params.NewPairing()
@@ -101,26 +100,56 @@ func (sk SK) encrypto(message string) (pk PK, ct CT) {
 
 	// e(g,g)^alpha
 	alpha, _ := rand.Int(rand.Reader, prime)
+
 	pubKey := pairing.NewGT().Pair(g, g)
 	pubKey.PowBig(pubKey, alpha)
 
+	pk = PK{pairing: pairing, g: g.Bytes(), pubKey: pubKey.Bytes(), p: prime}
+
+	return
+}
+
+func (sk SK) encrypto(pk PK, message string) (ct CT) {
+
+	g := pk.pairing.NewG1().SetBytes(pk.g)
+
+	pubKey := pk.pairing.NewGT().SetBytes(pk.pubKey)
 	// pk^s
-	privKey := pairing.NewGT().PowBig(pubKey, sk.secret)
+	privKey := pk.pairing.NewGT().PowBig(pubKey, sk.secret)
+
+	fmt.Println("")
+	fmt.Println("")
+	fmt.Println("")
 
 	// m to data
 	data := m2n(message)
 
-	// hash
-	h := pairing.NewG1().SetFromStringHash(message, sha256.New())
-	hg := pairing.NewGT().Pair(h, g)
-	// signature
-	sig := pairing.NewGT().Mul(hg, privKey).Bytes()
+	raw := big.NewInt(12345)
 
+	// hash
+	h := pk.pairing.NewG1().SetFromStringHash(message, sha256.New())
+	hg := pk.pairing.NewGT().Pair(h, g)
+	// signature
+	sig := pk.pairing.NewGT().Mul(hg, privKey).Bytes()
+
+	// ABSE encrypt
 	c := data.Mul(data, privKey.X())
 
-	ct = CT{ciphertext: c, signature: sig}
+	// Rand r
+	r, _ := rand.Int(rand.Reader, pk.p)
 
-	pk = PK{pairing: pairing, g: g.Bytes(), pubKey: pubKey.Bytes()}
+	// Select rand x is private key
+	x := new(big.Int).Add(privKey.X(), big.NewInt(0))
+	// Select rand x is public key
+	y := new(big.Int).Exp(g.X(), x, pk.p)
+
+	// Encrypt
+	c1 := new(big.Int).Exp(g.X(), r, pk.p)
+	s := new(big.Int).Exp(y, r, pk.p)
+	c2 := s.Mul(s, raw)
+	c2.Mod(c2, pk.p)
+
+	ct = CT{ciphertext: c, signature: sig, c1: c1, c2: c2}
 
 	return
 }
@@ -190,6 +219,14 @@ func (dsck DeSigCrypterKey) deSignCrypto(pk PK, ct CT) (message string) {
 	} else {
 		fmt.Println("Signature verified failed")
 	}
+
+	x := new(big.Int).Add(privKey.X(), big.NewInt(0))
+	fmt.Println("x:", x)
+	m := new(big.Int).Exp(ct.c1, x, pk.p)
+	m.ModInverse(m, pk.p)
+	m.Mul(m, ct.c2)
+	m.Mod(m, pk.p)
+	fmt.Println("data:", m)
 
 	return
 }
