@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -18,19 +19,19 @@ type PK struct {
 	g       []byte
 	pubKey  []byte
 	p       *big.Int
+	n       *big.Int
 }
 
 type SK struct {
 	attrField []byte
 	secret    *big.Int
 	vectors   map[string]*big.Int
+	e         *big.Int
 }
 
 type CT struct {
 	ciphertext *big.Int
 	signature  []byte
-	c1         *big.Int
-	c2         *big.Int
 }
 
 type DeSigCrypterKey struct {
@@ -51,6 +52,9 @@ func main() {
 }
 
 func systemInit() (sk SK, pk PK) {
+
+	rsa, _ := rsa.GenerateKey(rand.Reader, 256)
+
 	// 限定八節點
 	// 簽密者初始化階段
 	prefix := lsss.InfixToPrefix("((A+B)*(C+D))*((E+F)*(G+H))")
@@ -66,7 +70,11 @@ func systemInit() (sk SK, pk PK) {
 	for _, key := range attrField {
 		i := 0
 		for range key {
-			secrets[i], _ = rand.Prime(rand.Reader, 256)
+			if i > 0 {
+				secrets[i], _ = rand.Prime(rand.Reader, 256)
+			} else {
+				secrets[i] = new(big.Int).Add(rsa.D, big.NewInt(0))
+			}
 			i++
 		}
 		fmt.Println("secrets", secrets)
@@ -89,7 +97,7 @@ func systemInit() (sk SK, pk PK) {
 
 	jsonAttrField, _ := json.Marshal(attrField)
 
-	sk = SK{attrField: jsonAttrField, secret: secrets[0], vectors: vectors}
+	sk = SK{attrField: jsonAttrField, secret: secrets[0], vectors: vectors, e: big.NewInt(int64(rsa.E))}
 
 	prime, _ := rand.Prime(rand.Reader, 256)
 
@@ -104,7 +112,7 @@ func systemInit() (sk SK, pk PK) {
 	pubKey := pairing.NewGT().Pair(g, g)
 	pubKey.PowBig(pubKey, alpha)
 
-	pk = PK{pairing: pairing, g: g.Bytes(), pubKey: pubKey.Bytes(), p: prime}
+	pk = PK{pairing: pairing, g: g.Bytes(), pubKey: pubKey.Bytes(), p: prime, n: rsa.N}
 
 	return
 }
@@ -124,32 +132,18 @@ func (sk SK) encrypto(pk PK, message string) (ct CT) {
 	// m to data
 	data := m2n(message)
 
-	raw := big.NewInt(12345)
-
 	// hash
 	h := pk.pairing.NewG1().SetFromStringHash(message, sha256.New())
+
 	hg := pk.pairing.NewGT().Pair(h, g)
 	// signature
 	sig := pk.pairing.NewGT().Mul(hg, privKey).Bytes()
 
 	// ABSE encrypt
-	c := data.Mul(data, privKey.X())
+	// c := data.Mul(data, privKey.X())
+	c := new(big.Int).Exp(data, sk.e, pk.n)
 
-	// Rand r
-	r, _ := rand.Int(rand.Reader, pk.p)
-
-	// Select rand x is private key
-	x := new(big.Int).Add(privKey.X(), big.NewInt(0))
-	// Select rand x is public key
-	y := new(big.Int).Exp(g.X(), x, pk.p)
-
-	// Encrypt
-	c1 := new(big.Int).Exp(g.X(), r, pk.p)
-	s := new(big.Int).Exp(y, r, pk.p)
-	c2 := s.Mul(s, raw)
-	c2.Mod(c2, pk.p)
-
-	ct = CT{ciphertext: c, signature: sig, c1: c1, c2: c2}
+	ct = CT{ciphertext: c, signature: sig}
 
 	return
 }
@@ -194,7 +188,8 @@ func (dsck DeSigCrypterKey) deSignCrypto(pk PK, ct CT) (message string) {
 	pubKey := pairing.NewGT().SetBytes(pk.pubKey)
 	privKey := pairing.NewGT().PowBig(pubKey, secret)
 
-	data := ciphertext.Div(ciphertext, privKey.X())
+	// data := ciphertext.Div(ciphertext, privKey.X())
+	data := new(big.Int).Exp(ciphertext, secret, pk.n)
 
 	// m to data
 	message = n2m(data)
@@ -219,14 +214,6 @@ func (dsck DeSigCrypterKey) deSignCrypto(pk PK, ct CT) (message string) {
 	} else {
 		fmt.Println("Signature verified failed")
 	}
-
-	x := new(big.Int).Add(privKey.X(), big.NewInt(0))
-	fmt.Println("x:", x)
-	m := new(big.Int).Exp(ct.c1, x, pk.p)
-	m.ModInverse(m, pk.p)
-	m.Mul(m, ct.c2)
-	m.Mod(m, pk.p)
-	fmt.Println("data:", m)
 
 	return
 }
