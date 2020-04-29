@@ -19,8 +19,10 @@ Install brew
 
 * Language : C
 
+```bash
     gcc ibe.c -lpbc -lgmp
     ./a.out < a.param
+```
 
 ## LSSS Signtrue and Crypto with pbc library
 
