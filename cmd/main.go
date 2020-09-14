@@ -6,13 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"strings"
-	"xincrypto-lsss/lib/file"
-	"xincrypto-lsss/lsss"
 
 	"github.com/Nik-U/pbc"
+	"github.com/cody0704/crypto-lsss/pkg/lsss"
 )
 
 type PK struct {
@@ -48,31 +46,19 @@ type DeSigCrypterKey struct {
 }
 
 func main() {
-	// TODO 給系統存取結構 待補...
 	sk, pk := systemInit()
 
-	fmt.Println("")
-
 	fmt.Println("[Crytpo Data]")
-	root := file.GetAllFile("./Logs", "log")
-	for _, temp := range root {
-		fmt.Println("DataName:", temp.GetFileName())
-		fileData, err := ioutil.ReadFile(*temp.Directory) // just pass the file name
-		if err != nil {
-		}
-		fmt.Println(string(fileData))
-		fmt.Println()
-		//<html><body>dustvalue:0.029296875ug/m3<br />temperature:27.7<br />humidity:49.9%<br />co2:418</body></html>
-		ct := sk.encrypto(pk, "ADC")
+	message := "I am Cody"
+	ct := sk.encrypto(pk, message)
 
-		fmt.Println(ct)
+	fmt.Println(ct)
 
-		//解切密者初始化
-		dsck := sk.deSingerInit()
-		m := dsck.deSignCrypto(sk.ga, pk, ct)
+	//解切密者初始化
+	dsck := sk.deSingerInit()
+	m := dsck.deSignCrypto(sk.ga, pk, ct)
 
-		fmt.Println("Data:", m)
-	}
+	fmt.Println("Data:", m)
 }
 
 func systemInit() (sk SK, pk PK) {

@@ -19,15 +19,6 @@ Install brew
 brew install gmp
 ```
 
-## IBE with pbc library 
-
-* Language : C
-
-```bash
-gcc ibe.c -lpbc -lgmp
-./a.out < a.param
-```
-
 ## LSSS Signtrue and Crypto with pbc library
 
 * Language : Golang
