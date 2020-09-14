@@ -1,23 +1,44 @@
 package main
 
 import (
-	"crypto/rand"
-	"log"
+	"crypto/sha256"
+	"fmt"
 	"math/big"
 
-	pbc "github.com/ethereum/go-ethereum/crypto/bn256/cloudflare"
+	"github.com/Nik-U/pbc"
 )
 
 func main() {
-	m := big.NewInt(123456789)
-	log.Println("message:", m)
+	params := pbc.GenerateA(160, 512)
+	pairing := params.NewPairing()
 
-	_, g1, err := pbc.RandomG1(rand.Reader)
-	if err != nil {
-		log.Fatal("Error:", err)
-	}
-	log.Println()
+	M := big.NewInt(123456789)
 
-	qid := pbc.RandomG1(rand.Reader)
+	s := pairing.NewZr().Rand()
+	P := pairing.NewG1().Rand()
+	tem1 := pairing.NewGT().Rand()
 
+	//Setup, system parameters generation
+	Ppub := pairing.NewG1().MulZn(P, s)
+
+	//Extract, key calculation
+	Qid := pairing.NewG1().SetFromStringHash("cody", sha256.New())
+	dID := pairing.NewG1().MulZn(Qid, s)
+
+	//Encrypt encrypt M with ID
+	r := pairing.NewZr().Rand()
+	U := pairing.NewG1().MulZn(P, r)
+
+	gID := pairing.NewGT().Pair(Qid, Ppub)
+	gIDr := pairing.NewGT().MulZn(gID, r)
+
+	z := gIDr.X()
+	V := M.Xor(M, z)
+
+	//Decrypt decrypt C = <U,V>
+	tem1 = pairing.NewGT().Pair(dID, U)
+	z = tem1.X()
+	M = V.Xor(V, z)
+
+	fmt.Println(M)
 }
